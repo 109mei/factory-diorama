@@ -13,3 +13,16 @@ it('announces a paused renderer instead of claiming production is running when i
  ui.setRuntimeStatus(false);expect(host.querySelector('.world-caption')?.textContent).toContain('3D表示停止中');
  ui.setRuntimeStatus(true);expect(host.querySelector('.world-caption')?.textContent).toContain('生産ライン稼働中');ui.dispose();
 });
+it('offers all seven processes without shrinking their touch controls and directs the next expansion',()=>{
+ const host=document.createElement('div'),s=createGame(),ui=createUI(host,()=>s,()=>{});
+ expect(host.querySelectorAll('[data-station]').length).toBe(7);
+ (host.querySelector('[data-next-process]') as HTMLButtonElement).click();
+ expect(ui.getSelected()).toBe('crusher');expect(host.querySelector('[data-upgrade-label]')?.textContent).toContain('開放');ui.dispose();
+});
+it('celebrates a fully expanded factory instead of requesting impossible upgrades',()=>{
+ const host=document.createElement('div'),s=createGame();s.unlocked=5;for(const station of Object.keys(s.levels) as (keyof typeof s.levels)[])s.levels[station]=6;
+ const ui=createUI(host,()=>s,()=>{});expect(host.querySelector('[data-goal]')?.textContent).toContain('完成');ui.dispose();
+});
+it('keeps a large coin balance compact while retaining its exact accessible amount',()=>{
+ const host=document.createElement('div'),s=createGame();s.credits=123456789;const ui=createUI(host,()=>s,()=>{});const value=host.querySelector('[data-credits]')!;expect(value.textContent!.length).toBeLessThanOrEqual(7);expect(value.getAttribute('aria-label')).toContain('123,456,789');ui.dispose();
+});

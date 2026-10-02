@@ -7,3 +7,15 @@
 
 .world-caption.is-paused .live-dot{background:#a2a895;box-shadow:none}
 .renderer-error button{flex-shrink:0}
+
+/* Expanded industrial works: readable controls, no floating equipment labels. */
+:root{--top:128px}
+.objective{top:calc(76px + env(safe-area-inset-top));height:44px;padding:0;background:transparent;border:0;text-align:left;font:inherit;font-size:10px;pointer-events:auto}
+.objective .goal-track{bottom:1px}.objective:focus-visible{outline-offset:4px}
+.station-tabs{display:flex;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;scroll-snap-type:x proximity;gap:5px;margin-inline:1px;padding:0 3px 2px}
+.station-tabs::-webkit-scrollbar{display:none}.station-tab{flex:0 0 65px;min-width:65px;min-height:51px;scroll-snap-align:center}
+.station-tab.locked{color:#607d83}.station-tab.locked small{color:#6b8387;font-size:8px}.station-tab.next-process{color:#c5b887}.station-tab[aria-pressed=true]{color:var(--gold)}
+.overview-button{position:absolute;right:15px;top:10px;z-index:3;min-width:64px;min-height:44px;padding:8px 12px;border:1px solid #546b69;border-radius:7px;background:#0e2933d9;color:#b8cec7;font-size:11px;backdrop-filter:blur(8px)}
+.overview-button.is-focused{border-color:#aa995f;color:#ebcc88}.machine-stats>span:nth-child(2){overflow:hidden;text-overflow:ellipsis}
+@media(max-height:700px){:root{--top:111px}.objective{top:calc(63px + env(safe-area-inset-top));height:44px;font-size:9px}.station-tab{min-height:44px;flex-basis:58px;min-width:58px}.overview-button{right:12px;top:4px}.machine-stats{gap:7px}}
+@media(orientation:landscape) and (max-height:600px){:root{--top:85px}.objective{top:calc(58px + env(safe-area-inset-top));height:44px}.station-tab{flex-basis:57px;min-width:57px}}
