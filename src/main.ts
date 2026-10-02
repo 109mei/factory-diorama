@@ -11,7 +11,7 @@ const loaded=loadGame(savedRaw,Date.now());const state=loaded.state;const lifecy
 let scene:ReturnType<typeof createScene>|null=null;
 const ui=createUI(hud,()=>state,(station:Station)=>{if(buyUpgrade(state,station)){ui.notify(`${STATION_INFO[station].name}を増設！ Lv.${state.levels[station]}`);persist();}});
 function persist(){try{localStorage.setItem(SAVE_KEY,saveGame(state,lifecycle.saveTimestamp(Date.now())));storageAvailable=true;ui.setSaveStatus('✓ この端末に保存済み');}catch{storageAvailable=false;ui.setSaveStatus('保存できません・ブラウザ設定を確認');}}
-try{scene=createScene(world);}catch(error){world.innerHTML='<div class="renderer-error"><b>3D表示を開始できませんでした</b><span>WebGL対応のブラウザで開き直してください。保存された進行は維持されます。</span><button type="button" id="reload-renderer">もう一度試す</button></div>';document.querySelector('#reload-renderer')?.addEventListener('click',()=>location.reload());console.error('WebGL initialization failed',error);}
+try{scene=createScene(world);}catch(error){ui.setRuntimeStatus(false);world.setAttribute('aria-label','3D表示を開始できませんでした');world.innerHTML='<div class="renderer-error"><b>3D表示を開始できませんでした</b><span>WebGL対応のブラウザで開き直してください。保存された進行は維持されます。</span><button type="button" id="reload-renderer">もう一度試す</button></div>';document.querySelector('#reload-renderer')?.addEventListener('click',()=>location.reload());console.error('WebGL initialization failed',error);}
 if(loaded.offlineEarned>0)ui.notify(`おかえりなさい！ 留守中に +${loaded.offlineEarned.toLocaleString('ja-JP')} C${loaded.awaySeconds>=1800?'（30分ぶん）':''}`);
 else if(loaded.recovered)ui.notify('保存データを読み込めなかったため、新しい工場で開始しました');
 else if(!storageAvailable)ui.notify('自動保存を利用できません。この画面を閉じると進行が失われる場合があります');
