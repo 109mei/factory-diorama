@@ -16,7 +16,7 @@ describe('expanded deterministic production',()=>{
  it('defines seven stations and twelve alternating belt and machine stages',()=>{
   expect(STATIONS).toEqual(expectedStations);
   expect(simulation).toHaveProperty('TOTAL_STAGES',12);
-  expect(STAGE_SECONDS).toEqual([1.8,2.4,1.8,2.2,1.8,2.6,1.8,3.2,1.8,2.4,1.8,2]);
+  expect(STAGE_SECONDS).toEqual([3.6,2.4,3.6,2.2,3.6,2.6,3.6,3.2,3.6,2.4,3.6,2]);
   expect(CYCLE_SECONDS).toEqual({mine:3.2,crusher:2.4,sorter:2.2,smelter:2.6,press:3.2,packer:2.4,shipping:2});
   expect(MAX_ITEMS).toBe(216);expect(STAGE_CAPACITY).toBe(18);expect(MAX_LEVEL).toBe(6);
   expect(Object.keys(createGame().levels)).toEqual(expectedStations);

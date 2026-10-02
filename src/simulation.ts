@@ -10,7 +10,7 @@ export interface GameState {credits:number;unlocked:number;levels:Record<Station
 export const TOTAL_STAGES=(STATIONS.length-1)*2;
 export const MAX_LEVEL=6, STAGE_CAPACITY=18, MAX_ITEMS=STAGE_CAPACITY*TOTAL_STAGES, STEP=.1;
 export const CYCLE_SECONDS:Record<Station,number>={mine:3.2,crusher:2.4,sorter:2.2,smelter:2.6,press:3.2,packer:2.4,shipping:2};
-export const STAGE_SECONDS:readonly number[]=STATIONS.slice(1).flatMap(station=>[1.8,CYCLE_SECONDS[station]]);
+export const STAGE_SECONDS:readonly number[]=STATIONS.slice(1).flatMap(station=>[3.6,CYCLE_SECONDS[station]]);
 export function createGame():GameState {return {credits:0,unlocked:0,levels:Object.fromEntries(STATIONS.map(station=>[station,1])) as Record<Station,number>,items:[],mineTimer:0,accumulator:0,ticks:0,mined:0,shipped:0,nextId:1};}
 export function isStationUnlocked(state:GameState,station:Station):boolean {
  const index=STATIONS.indexOf(station);

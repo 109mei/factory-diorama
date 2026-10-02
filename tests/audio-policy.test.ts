@@ -3,13 +3,13 @@ import {createGame,type Stage} from '../src/simulation';
 import {AUDIO_STORAGE_KEY,DEFAULT_AUDIO_PREFERENCES,readAudioPreferences,normalizeAudioPreferences,serializeAudioPreferences,AUDIO_LIMITS,createAudioEventTracker,factoryAudioActivity} from '../src/audio-policy';
 
 describe('audio preference policy',()=>{
- it('starts quietly off and tolerates missing, broken, and unavailable storage',()=>{
-  expect(DEFAULT_AUDIO_PREFERENCES).toEqual({enabled:false,volume:.25});
+ it('starts enabled but gesture-gated and tolerates missing, broken, and unavailable storage',()=>{
+  expect(DEFAULT_AUDIO_PREFERENCES).toEqual({enabled:true,volume:.25});
   for(const value of [null,undefined,'','{}','null','[]','bad','{"enabled":"yes","volume":"1"}']){
-   expect(readAudioPreferences({getItem:()=>value as string|null})).toEqual({enabled:false,volume:.25});
+   expect(readAudioPreferences({getItem:()=>value as string|null})).toEqual({enabled:true,volume:.25});
   }
-  expect(readAudioPreferences(null)).toEqual({enabled:false,volume:.25});
-  expect(readAudioPreferences({getItem(){throw new Error('blocked');}})).toEqual({enabled:false,volume:.25});
+  expect(readAudioPreferences(null)).toEqual({enabled:true,volume:.25});
+  expect(readAudioPreferences({getItem(){throw new Error('blocked');}})).toEqual({enabled:true,volume:.25});
  });
  it('reads only its own key and preserves valid saved intent without side effects',()=>{
   const keys:string[]=[];
@@ -78,4 +78,15 @@ describe('observed production audio events',()=>{
   state.items=Array.from({length:300},(_,id)=>({id,stage:(id%12) as Stage,progress:.4,quality:0,value:2}));
   const activity=factoryAudioActivity(state);expect(activity.rolling).toBeLessThanOrEqual(1);expect(activity.working).toBeLessThanOrEqual(1);
  });
+});
+
+it('distinguishes explicit mute from ambiguous old OFF without enabling either',async()=>{
+ const policy=await import('../src/audio-policy');
+ expect((policy as any).readAudioPreferenceState).toBeTypeOf('function');
+ const read=(v:unknown)=>(policy as any).readAudioPreferenceState({getItem:()=>JSON.stringify(v)});
+ expect(read({enabled:false,volume:.4})).toEqual({preferences:{enabled:false,volume:.4},intent:'legacy-off',promptSeen:false});
+ expect(read({enabled:false,volume:.4,intent:'explicit',promptSeen:true})).toEqual({preferences:{enabled:false,volume:.4},intent:'explicit',promptSeen:true});
+ expect(read(null)).toEqual({preferences:{enabled:true,volume:.25},intent:'default',promptSeen:false});
+ const saved=serializeAudioPreferences({enabled:false,volume:.3},{intent:'legacy-off',promptSeen:true} as any);
+ expect(read(JSON.parse(saved))).toEqual({preferences:{enabled:false,volume:.3},intent:'legacy-off',promptSeen:true});
 });

@@ -8,11 +8,12 @@ export interface Mechanism{station:Station;kind:MechanismKind;object:THREE.Group
 const random=(n:number)=>{const v=Math.sin(n*47.73+21.47)*49632.315;return v-Math.floor(v);};
 export function createFactoryModel(){
  const root=new THREE.Group(),infrastructure=new THREE.Group(),dynamic=new THREE.Group();let staticRoot=infrastructure;root.add(infrastructure,dynamic);
- const stationGroups=Object.fromEntries(STATIONS.map(station=>{const group=new THREE.Group();root.add(group);return [station,group];})) as Record<Station,THREE.Group>;
+ const stationGroups=Object.fromEntries(STATIONS.map(station=>{const group=new THREE.Group();group.userData.station=station;root.add(group);return [station,group];})) as Record<Station,THREE.Group>;
  const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),mechanisms:Mechanism[]=[];
  const own=<T extends THREE.BufferGeometry>(g:T)=>{geometries.add(g);return g;};
  const material=(color:string,metalness=.2,roughness=.6,emissive?:string)=>{const m=new THREE.MeshStandardMaterial({color,metalness,roughness,...(emissive?{emissive,emissiveIntensity:1.4}:{})});materials.add(m);return m;};
  const m={concrete:material('#304346',.05,.96),foundation:material('#132a32',.05,.95),edge:material('#506669',.35,.7),steel:material('#a6b9b6',.8,.3),darkSteel:material('#30474f',.75,.4),teal:material('#3a807d',.55,.42),petrol:material('#24545f',.6,.46),gold:material('#dbad56',.65,.35),copper:material('#b77b50',.8,.4),rubber:material('#101b20',.05,.95),rock:material('#566068',.05,1),rockDark:material('#343f46',.05,1),ore:material('#ac793e',.45,.68),wood:material('#b99362',.1,.75),white:material('#d7ded0',.3,.4),glass:material('#5b9fab',.7,.16),hot:material('#ff9739',.25,.35,'#ff6b16'),lamp:material('#b9f6d2',.1,.3,'#86e8b7'),red:material('#ac5944',.35,.6)};
+ const refractory=material('#be8f68',.05,.95);refractory.side=THREE.DoubleSide;
  const geo={box:own(new THREE.BoxGeometry(1,1,1)),round:own(new RoundedBoxGeometry(1,1,1,2,.075)),cylinder:own(new THREE.CylinderGeometry(1,1,1,16)),rock:own(new THREE.DodecahedronGeometry(1,0)),ball:own(new THREE.IcosahedronGeometry(1,1))};
  function mesh(g:THREE.Group,geometry:THREE.BufferGeometry,mat:THREE.Material,x:number,y:number,z:number,sx=1,sy=1,sz=1){const o=new THREE.Mesh(geometry,mat);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;g.add(o);return o;}
  const box=(g:THREE.Group,x:number,y:number,z:number,w:number,h:number,d:number,mat:THREE.Material,round=false)=>mesh(g,round?geo.round:geo.box,mat,x,y,z,w,h,d);
@@ -20,7 +21,7 @@ export function createFactoryModel(){
  function beam(g:THREE.Group,a:THREE.Vector3,b:THREE.Vector3,width:number,mat:THREE.Material){const o=box(g,0,0,0,width,a.distanceTo(b),width,mat);o.position.copy(a).lerp(b,.5);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());return o;}
  function tube(g:THREE.Group,points:number[][],r:number,mat:THREE.Material){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(p[0],p[1],p[2])));return mesh(g,own(new THREE.TubeGeometry(curve,Math.max(10,points.length*5),r,7,false)),mat,0,0,0);}
  function batch(group:THREE.Group){group.updateWorldMatrix(true,true);const inverse=group.matrixWorld.clone().invert(),batches=new Map<THREE.Material,THREE.BufferGeometry[]>();group.traverse(o=>{if(o instanceof THREE.Mesh){const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(inverse.clone().multiply(o.matrixWorld));const mat=o.material as THREE.Material;if(!batches.has(mat))batches.set(mat,[]);batches.get(mat)!.push(g);}});group.clear();for(const [mat,geos] of batches){const merged=mergeGeometries(geos);geos.forEach(g=>g.dispose());if(merged)mesh(group,own(merged),mat,0,0,0);}}
- function mechanism(station:Station,kind:MechanismKind,x:number,y:number,z:number){const g=new THREE.Group();const [sx,sz]=P[station];g.position.set(sx+x,y,sz+z);g.name=`${station}:${kind}:${mechanisms.filter(m=>m.station===station&&m.kind===kind).length}`;dynamic.add(g);mechanisms.push({station,kind,object:g,base:g.position.clone(),phase:mechanisms.length*.7});return g;}
+ function mechanism(station:Station,kind:MechanismKind,x:number,y:number,z:number){const g=new THREE.Group();const [sx,sz]=P[station];g.position.set(sx+x,y,sz+z);g.name=`${station}:${kind}:${mechanisms.filter(m=>m.station===station&&m.kind===kind).length}`;g.userData.station=station;dynamic.add(g);mechanisms.push({station,kind,object:g,base:g.position.clone(),phase:mechanisms.length*.7});return g;}
  function gear(g:THREE.Group,x:number,y:number,z:number,r:number,mat:THREE.Material,teeth=14){const shape=new THREE.Shape();for(let i=0;i<teeth*4;i++){const a=i/(teeth*4)*Math.PI*2,rr=i%4===0||i%4===3?r*.87:r;const px=Math.cos(a)*rr,py=Math.sin(a)*rr;if(i===0)shape.moveTo(px,py);else shape.lineTo(px,py);}shape.closePath();const hole=new THREE.Path();hole.absarc(0,0,r*.25,0,Math.PI*2,true);shape.holes.push(hole);return mesh(g,own(new THREE.ExtrudeGeometry(shape,{depth:.14,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.025,bevelThickness:.018,curveSegments:12})),mat,x,y,z);}
  function bolts(g:THREE.Group,x:number,y:number,z:number,w:number,h:number){for(const dx of [-w/2,w/2])for(const dy of [-h/2,h/2]){const b=cyl(g,x+dx,y+dy,z,.045,.05,m.steel);b.rotation.x=Math.PI/2;}}
  function motor(g:THREE.Group,x:number,y:number,z:number){const body=cyl(g,x,y,z,.24,.65,m.petrol);body.rotation.z=Math.PI/2;for(let i=0;i<6;i++){const rib=cyl(g,x-.27+i*.11,y,z,.27,.035,m.edge);rib.rotation.z=Math.PI/2;}box(g,x,y-.24,z,.7,.12,.56,m.darkSteel);box(g,x,y+.26,z,.23,.12,.2,m.gold,true);}
@@ -55,9 +56,13 @@ export function createFactoryModel(){
  }
  staticRoot=stationGroups.crusher;
  // Crusher: funnel, twin counter-rotating toothed rollers and an exposed flywheel drive.
- {const [x,z]=P.crusher;box(staticRoot,x,1.12,z,2.1,.72,1.5,m.petrol,true);bolts(staticRoot,x,1.15,z+.79,1.7,.4);motor(staticRoot,x-1.05,1.25,z+.16);
-  const hopper=mesh(staticRoot,own(new THREE.CylinderGeometry(1.03,.49,.92,4,1,true)),m.darkSteel,x,2.05,z,1,1,.8);hopper.rotation.y=Math.PI/4;
-  box(staticRoot,x,2.52,z-.02,1.62,.12,1.35,m.gold);box(staticRoot,x,2.58,z-.02,1.38,.015,1.1,m.rubber);
+ {const [x,z]=P.crusher;
+  // Sectioned rear hopper and open front bearing frame reveal material between the rollers.
+  box(staticRoot,x,.98,z,2.1,.35,1.55,m.petrol,true);
+  box(staticRoot,x,1.89,z-.76,2.1,1.55,.13,m.darkSteel);
+  for(const dx of [-1,1]){box(staticRoot,x+dx,1.55,z,.13,1.25,1.5,m.petrol);box(staticRoot,x+dx,2.22,z-.32,.16,.12,.9,m.gold);}
+  box(staticRoot,x,2.54,z-.73,2.18,.1,.18,m.gold);
+  box(staticRoot,x,1.16,z+.73,2.1,.15,.14,m.gold);bolts(staticRoot,x,1.13,z+.81,1.7,.12);motor(staticRoot,x-1.05,1.25,z+.16);
   for(const dx of [-.42,.42]){const roller=mechanism('crusher','roller',dx,1.76,.2);const body=cyl(roller,0,0,0,.28,1.12,m.steel);body.rotation.x=Math.PI/2;for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const tooth=box(roller,Math.cos(a)*.28,Math.sin(a)*.28,0,.095,.13,1.04,m.gold);tooth.rotation.z=a;}batch(roller);}
   const wheel=mechanism('crusher','gear',1.17,1.3,.93);gear(wheel,0,0,0,.53,m.gold);batch(wheel);cyl(staticRoot,x+1.17,1.03,z+.5,.12,.7,m.darkSteel);
  }
@@ -70,17 +75,27 @@ export function createFactoryModel(){
  }
  staticRoot=stationGroups.smelter;
  // Smelter: refractory shell, orange throat, flanged pipework and a service stair.
- {const [x,z]=P.smelter;cyl(staticRoot,x,1.5,z,.93,1.72,m.darkSteel);cyl(staticRoot,x,2.4,z,.98,.15,m.copper);cyl(staticRoot,x,2.6,z,.7,.3,m.petrol);cyl(staticRoot,x,2.83,z,.45,.22,m.rubber);
-  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;cyl(staticRoot,x+Math.cos(a)*.94,1.6,z+Math.sin(a)*.94,.042,1.4,m.edge);}
-  box(staticRoot,x,1.43,z+.89,1.22,.97,.18,m.rubber,true);box(staticRoot,x,1.43,z+1.0,.94,.68,.07,m.hot,true);for(const dx of [-.33,0,.33])box(staticRoot,x+dx,1.43,z+1.05,.055,.7,.07,m.darkSteel);
+ {const [x,z]=P.smelter;
+  // A solid rear half-shell and visible refractory lining, with the front/top cut away.
+  mesh(staticRoot,own(new THREE.CylinderGeometry(.98,.98,1.8,24,1,true,1.7,3.45)),m.darkSteel,x,1.65,z);
+  mesh(staticRoot,own(new THREE.CylinderGeometry(.88,.88,1.58,24,1,true,1.7,3.45)),refractory,x,1.59,z);
+  cyl(staticRoot,x,.97,z,.96,.3,m.darkSteel);cyl(staticRoot,x,1.135,z,.8,.035,m.hot);
+  for(let i=0;i<10;i++){const a=1.73+i*.374,px=x+Math.sin(a)*.92,pz=z+Math.cos(a)*.92;cyl(staticRoot,px,1.68,pz,.042,1.65,m.edge);}
+  const rimPoints=Array.from({length:20},(_,i)=>{const a=1.7+i/19*3.45;return [x+Math.sin(a)*.98,2.56,z+Math.cos(a)*.98];});tube(staticRoot,rimPoints,.075,m.copper);
+  // Three exposed casting grooves run out of the glowing open crucible.
+  for(const dx of [-.48,0,.48]){box(staticRoot,x+dx,1.08,z+.53,.4,.1,.94,m.darkSteel);for(const side of [-1,1])box(staticRoot,x+dx+side*.21,1.15,z+.53,.035,.04,.94,m.copper);}
   cyl(staticRoot,x+1.25,2.38,z-.65,.27,3.36,m.darkSteel);cyl(staticRoot,x+1.25,4.1,z-.65,.38,.13,m.copper);
   tube(staticRoot,[[x-.72,1.8,z-.3],[x-1.25,1.8,z-.3],[x-1.38,1.45,z-.3],[x-1.38,.9,z+.45]],.14,m.copper);for(let i=0;i<5;i++)box(staticRoot,x-1.47,.76+i*.15,z+.8-i*.27,.65,.13,.28,m.edge);
  }
  staticRoot=stationGroups.press;
  // Forming press: heavy portal frame, chromed hydraulic rods and a mechanically driven die.
  {const [x,z]=P.press;box(staticRoot,x,.96,z,2.3,.42,1.8,m.darkSteel,true);for(const dx of [-.93,.93]){box(staticRoot,x+dx,1.92,z,.3,2.15,1.05,m.petrol,true);cyl(staticRoot,x+dx*.68,1.86,z+.22,.08,1.96,m.steel);}box(staticRoot,x,3.04,z,2.35,.52,1.22,m.teal,true);box(staticRoot,x,3.36,z,1.32,.15,.93,m.gold);cyl(staticRoot,x,3.65,z,.32,.56,m.darkSteel);
-  const ram=mechanism('press','ram',0,0,0);cyl(ram,0,2.35,0,.19,1.1,m.steel);box(ram,0,1.93,0,1.26,.32,1.01,m.gold,true);for(let i=0;i<5;i++){const stripe=box(ram,-.5+i*.25,1.93,.515,.12,.31,.02,m.rubber);stripe.rotation.z=-.35;}batch(ram);
-  box(staticRoot,x,1.21,z,1.25,.17,1.04,m.steel);const wheel=mechanism('press','gear',1.35,2.11,.62);gear(wheel,0,0,0,.63,m.copper,18);batch(wheel);tube(staticRoot,[[x,3.65,z-.2],[x+.75,3.65,z-.5],[x+1.25,3.1,z-.5],[x+1.25,1.1,z-.5]],.055,m.rubber);
+  const ram=mechanism('press','ram',0,0,0);cyl(ram,0,2.35,-.65,.19,1.1,m.steel);
+  // Open annular die carriage: metal contacts the workpiece perimeter while its center stays visible.
+  box(ram,0,1.95,-.7,1.84,.2,.16,m.gold,true);for(const dx of [-.88,.88])box(ram,dx,1.93,0,.1,.16,1.48,m.darkSteel);
+  const die=own(new THREE.TorusGeometry(.21,.027,6,24));for(const dx of [-.48,0,.48])for(const dz of [-.28,.28]){const ring=mesh(ram,die,m.gold,dx,1.797,dz);ring.rotation.x=Math.PI/2;beam(ram,new THREE.Vector3(dx,1.9,-.7),new THREE.Vector3(dx,1.83,dz-.19),.05,m.steel);}
+  for(let i=0;i<5;i++){const stripe=box(ram,-.5+i*.25,1.95,-.61,.12,.18,.02,m.rubber);stripe.rotation.z=-.35;}batch(ram);
+  box(staticRoot,x,1.21,z,1.9,.17,1.25,m.steel);const wheel=mechanism('press','gear',1.35,2.11,.62);gear(wheel,0,0,0,.63,m.copper,18);batch(wheel);tube(staticRoot,[[x,3.65,z-.2],[x+.75,3.65,z-.5],[x+1.25,3.1,z-.5],[x+1.25,1.1,z-.5]],.055,m.rubber);
  }
  staticRoot=stationGroups.packer;
  // Packing cell: articulated pick-and-place arm, driven belt and banding arch.
@@ -100,7 +115,7 @@ export function createFactoryModel(){
   box(staticRoot,tx-1.46,1.16,tz+.36,.025,.14,.22,m.lamp);box(staticRoot,tx-1.46,1.16,tz-.36,.025,.14,.22,m.lamp);
  }
  // Equipment-specific auxiliary capacity physically appears with each purchased level.
- const extras=Object.fromEntries(STATIONS.map(s=>{const g=new THREE.Group();root.add(g);return [s,g];})) as Record<Station,THREE.Group>;
+ const extras=Object.fromEntries(STATIONS.map(s=>{const g=new THREE.Group();g.userData.station=s;root.add(g);return [s,g];})) as Record<Station,THREE.Group>;
  function setLevel(station:Station,level:number){const g=extras[station];g.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();geometries.delete(o.geometry);}});g.clear();const [x,z]=P[station];for(let i=1;i<level;i++){const dx=(i%2?1:-1)*(1.75+Math.floor((i-1)/2)*.4),dz=-.6+Math.floor((i-1)/2)*.7;
   box(g,x+dx,.78,z+dz,.6,.25,.64,m.darkSteel,true);
   if(station==='smelter'||station==='sorter'){cyl(g,x+dx,1.27,z+dz,.26,.75,station==='smelter'?m.copper:m.petrol);cyl(g,x+dx,1.69,z+dz,.29,.1,m.steel);tube(g,[[x+dx,1,z+dz],[x+dx*.6,1,z+dz]],.065,m.copper);}

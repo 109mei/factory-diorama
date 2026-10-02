@@ -5,7 +5,7 @@ import {createScene} from './scene';
 import {restoreGame} from './storage';
 import {createLifecycle} from './lifecycle';
 import {createUI,STATION_INFO} from './ui';
-import {createFactoryAudio,readAudioPreferences,serializeAudioPreferences,AUDIO_STORAGE_KEY,DEFAULT_AUDIO_PREFERENCES} from './audio';
+import {createFactoryAudio,readAudioPreferenceState,serializeAudioPreferences,AUDIO_STORAGE_KEY,DEFAULT_AUDIO_PREFERENCES,type AudioIntent} from './audio';
 
 const world=document.querySelector<HTMLElement>('#world')!,hud=document.querySelector<HTMLElement>('#hud')!;
 let loaded:ReturnType<typeof restoreGame>;
@@ -14,6 +14,7 @@ let storageAvailable=loaded.storageAvailable;
 const state=loaded.state,lifecycle=createLifecycle(state);
 if(document.hidden)lifecycle.hide(Date.now());
 let scene:ReturnType<typeof createScene>|null=null,audio:ReturnType<typeof createFactoryAudio>|null=null,rendererPaused=true;
+let audioIntent:AudioIntent='default',soundPromptSeen=false;
 let preferenceTimer:ReturnType<typeof setTimeout>|undefined;
 const ui=createUI(hud,()=>state,station=>{
  const opening=!isStationUnlocked(state,station)&&nextUnlock(state)===station;
@@ -26,13 +27,14 @@ function persist(){
 }
 function saveSoundPreferences(){
  clearTimeout(preferenceTimer);preferenceTimer=undefined;if(!audio)return;
- try{localStorage.setItem(AUDIO_STORAGE_KEY,serializeAudioPreferences(audio.getPreferences()));}
+ try{localStorage.setItem(AUDIO_STORAGE_KEY,serializeAudioPreferences(audio.getPreferences(),{intent:audioIntent,promptSeen:soundPromptSeen}));}
  catch{ui.notify('サウンド設定を保存できません。この画面では設定を使えます。');}
 }
 function toggleSound(){
  if(!audio)return;
- if(audio.getState().status==='running'){void audio.setEnabled(false);saveSoundPreferences();return;}
+ if(audio.getState().status==='running'){audioIntent='explicit';void audio.setEnabled(false);saveSoundPreferences();return;}
  if(!scene||rendererPaused){ui.notify('3D表示が停止しています。サウンド設定は保ったまま、表示の再開を待ちます。');return;}
+ audioIntent='explicit';
  // This call stays directly in the user's click handler, before any await.
  void audio.enableFromGesture().then(started=>{saveSoundPreferences();if(!started&&audio?.getState().status==='unavailable')ui.notify('このブラウザでは音声を開始できませんでした。');});
 }
@@ -44,7 +46,7 @@ catch(error){
  document.querySelector('#reload-renderer')?.addEventListener('click',()=>location.reload());console.error('WebGL initialization failed',error);
 }
 let preferences={...DEFAULT_AUDIO_PREFERENCES};
-try{preferences=readAudioPreferences(localStorage);}catch{/* A denied Storage getter keeps the safe defaults. */}
+try{const stored=readAudioPreferenceState(localStorage);preferences=stored.preferences;audioIntent=stored.intent;soundPromptSeen=stored.promptSeen;}catch{/* A denied Storage getter keeps the safe defaults. */}
 audio=createFactoryAudio(preferences,soundState=>ui.setSoundState(soundState));ui.setSoundState(audio.getState());syncSoundVisibility();
 const soundGestureEvents=['pointerup','touchend','click','keydown'] as const;
 function removeSoundGestures(){for(const type of soundGestureEvents)document.removeEventListener(type,firstSoundGesture);}
@@ -65,7 +67,9 @@ if(loaded.offlineEarned>0)ui.notify(`おかえりなさい！ 留守中に +${lo
 else if(loaded.migrated)ui.notify('工場が新しくなりました。資金と設備を引き継ぎました');
 else if(loaded.recovered)ui.notify('保存データを読み込めなかったため、新しい工場で開始しました');
 else if(!storageAvailable)ui.notify('自動保存を利用できません。この画面を閉じると進行が失われる場合があります');
+if(audioIntent==='legacy-off'&&!soundPromptSeen){ui.notify('以前の音声OFF設定を維持しています。♪を押すと音が始まります。');soundPromptSeen=true;saveSoundPreferences();}
 if(scene)persist();
+world.addEventListener('world-station-select',event=>ui.select((event as CustomEvent<Station>).detail));
 hud.addEventListener('station-select',event=>scene?.focusStation((event as CustomEvent<Station>).detail));
 let previous=performance.now(),elapsed=0,uiTimer=0,saveTimer=0;
 document.addEventListener('visibilitychange',()=>{
