@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>鉱脈ライン｜表示チェック</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:8px;background:#041017;color:#dfe9e3;font:13px system-ui,sans-serif;display:flex;gap:20px;align-items:flex-start}iframe{display:block;width:390px;height:844px;flex-shrink:0;border:0;background:#0b2029}aside{position:sticky;top:20px;max-width:240px;min-width:150px;padding:18px 5px}h1{font-size:17px;letter-spacing:1px;margin:0 0 16px}p{color:#9fb8b8;font-size:11px;line-height:1.8}button{display:block;width:100%;min-height:44px;margin:8px 0;padding:10px;background:#14313a;color:#c7dbd6;border:1px solid #466261;border-radius:5px;cursor:pointer;text-align:left}button[aria-pressed=true]{border-color:#e9bf6a;color:#f5cd82}button:focus-visible{outline:2px solid #9bf0d1;outline-offset:3px}a{color:#a0e1ca}output{display:block;font:12px ui-monospace,monospace;color:#e9bf6a;margin-top:18px}
+</style></head>
+<body>
+<iframe title="実際の工場ゲーム" src="./" width="390" height="844"></iframe>
+<aside><h1>鉱脈ライン<br>表示チェック</h1><button data-size="390,844" aria-pressed="true">縦画面 390 × 844</button><button data-size="320,568" aria-pressed="false">小さい縦画面 320 × 568</button><button data-size="844,390" aria-pressed="false">横画面 844 × 390</button><output aria-live="polite">390 × 844</output><p>左は実際のゲームです。フレーム内の表示領域を切り替えて、操作とレイアウトを確認できます。</p><p>保存データは通常のゲーム画面と共通です。同時に別のゲーム画面を開かず、1つの画面で検証してください。</p><p>この確認画面は、実機のタッチ操作やSafari、画面の切り欠き・セーフエリアの検証を代替しません。</p><p><a href="./">通常のゲームを開く →</a></p></aside>
+<script>
+const frame=document.querySelector('iframe');
+const buttons=[...document.querySelectorAll('[data-size]')];
+function resizeGame(button){const [width,height]=button.dataset.size.split(',').map(Number);frame.style.width=width+'px';frame.style.height=height+'px';frame.width=String(width);frame.height=String(height);for(const candidate of buttons)candidate.setAttribute('aria-pressed',String(candidate===button));document.querySelector('output').textContent=width+' × '+height;}
+for(const button of buttons)button.addEventListener('click',()=>resizeGame(button));
+resizeGame(buttons[0]);
+</script></body></html>

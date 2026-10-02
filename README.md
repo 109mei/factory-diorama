@@ -1,2 +1,51 @@
-# factory-diorama
-A portrait-friendly factory game with visible mining, production, and transport.
+# 鉱脈ライン / MINE LINE
+
+採掘 → 搬送 → 製錬 → 加工 → 出荷。小さな工場を眺めながら増設する、スマホ縦画面向けのオリジナル3Dゲームです。
+
+## 遊び方
+
+- 工場は自動で稼働します。部品を1個出荷するたびに5クレジット。
+- 下の設備タブ、または工場内のラベルで設備を選択します。
+- クレジットが貯まったら増設。最初の増設は20 C、各設備は最大6基です。
+- 滞留のある工程を増設すると、生産の流れが改善します。
+- 進行は同じブラウザのlocalStorageに自動保存。離席中は最大30分ぶん進みます。
+- アカウント、課金、広告、外部画像・モデル、音声の自動再生はありません。
+
+## ローカルで起動
+
+Node.js 22以上。
+
+```sh
+npm ci
+npm run dev
+npm test
+npm run build
+npm run preview
+```
+
+一部の制限付き環境では `npm run dev -- --host 127.0.0.1` を使用します。
+
+## 実装
+
+- Three.js + TypeScript + Vite。モデルはすべてコードによるオリジナルのプリミティブ形状です。
+- ルール計算は描画と独立した100ms固定刻み。素材のID、工程、進捗をそのまま表示へ反映します。
+- 有限の工程バッファ、整数のクレジット、購入時の再検査、バージョン付き保存データ検証。
+- ステートの離席計算は通常プレイと同じシミュレーションを使用します。
+- 3Dの静的形状は材質ごとに結合。搬送品はInstancedMeshを利用しています。
+- 日本語HUDはDOM。320px幅、縦横変更、safe-area、キーボード操作、WebGL復帰メッセージに対応。
+
+## GitHub Pages
+
+Actionsによるビルド・公開ワークフローを同梱しています。リポジトリの Settings → Pages → Source を GitHub Actions に設定してください。公開成功と実際のプレイURLの確認は別途必要です。
+
+## テスト
+
+```sh
+npm test
+npm run typecheck
+npm run build
+# 別ターミナルで dev サーバーを起動し、Chromiumが使用できる環境で:
+npm run test:browser
+```
+
+確認環境、検証済み項目、残る制限は [docs/qa.md](docs/qa.md) を参照してください。
