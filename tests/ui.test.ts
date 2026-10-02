@@ -23,6 +23,17 @@ it('celebrates a fully expanded factory instead of requesting impossible upgrade
  const host=document.createElement('div'),s=createGame();s.unlocked=5;for(const station of Object.keys(s.levels) as (keyof typeof s.levels)[])s.levels[station]=6;
  const ui=createUI(host,()=>s,()=>{});expect(host.querySelector('[data-goal]')?.textContent).toContain('完成');ui.dispose();
 });
-it('keeps a large coin balance compact while retaining its exact accessible amount',()=>{
- const host=document.createElement('div'),s=createGame();s.credits=123456789;const ui=createUI(host,()=>s,()=>{});const value=host.querySelector('[data-credits]')!;expect(value.textContent!.length).toBeLessThanOrEqual(7);expect(value.getAttribute('aria-label')).toContain('123,456,789');ui.dispose();
+it.each([1000000,123456789,1000000000000])('keeps balance %s compact while retaining its exact accessible amount',balance=>{
+ const host=document.createElement('div'),s=createGame();s.credits=balance;const ui=createUI(host,()=>s,()=>{});const value=host.querySelector('[data-credits]')!;expect(value.textContent!.length).toBeLessThanOrEqual(7);expect(value.getAttribute('aria-label')).toContain(balance.toLocaleString('ja-JP'));ui.dispose();
+});
+it('requires an explicit sound action and exposes a volume control',()=>{
+ const host=document.createElement('div'),s=createGame();let toggles=0,volume=-1;const ui=createUI(host,()=>s,()=>{},{toggle:()=>{toggles++;},volume:v=>{volume=v;}});
+ expect(toggles).toBe(0);(host.querySelector('[data-sound]') as HTMLButtonElement).click();expect(toggles).toBe(1);
+ const input=host.querySelector('[data-volume]') as HTMLInputElement;input.value='30';input.dispatchEvent(new Event('input',{bubbles:true}));expect(volume).toBe(.3);ui.dispose();
+});
+it('shows waiting/unavailable sound truthfully without claiming playback',()=>{
+ const host=document.createElement('div'),s=createGame(),ui=createUI(host,()=>s,()=>{});
+ ui.setSoundState({preferences:{enabled:true,volume:.25},status:'waiting'});expect(host.querySelector('[data-sound]')?.getAttribute('aria-label')).toContain('待機');
+ ui.setSoundState({preferences:{enabled:true,volume:.25},status:'starting'});expect(host.querySelector('[data-sound-status]')?.textContent).toContain('開始');
+ ui.setSoundState({preferences:{enabled:true,volume:.25},status:'unavailable'});expect(host.querySelector('[data-sound-status]')?.textContent).toContain('利用できません');ui.dispose();
 });

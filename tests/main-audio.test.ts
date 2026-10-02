@@ -1,0 +1,18 @@
+// @vitest-environment jsdom
+import {it,expect,vi} from 'vitest';
+const probe=vi.hoisted(()=>({enable:vi.fn(),setEnabled:vi.fn(),setVolume:vi.fn(),hidden:vi.fn(),update:vi.fn(),dispose:vi.fn()}));
+vi.mock('../src/audio',()=>({
+ AUDIO_STORAGE_KEY:'factory-audio-v1',DEFAULT_AUDIO_PREFERENCES:{enabled:false,volume:.25},readAudioPreferences:()=>({enabled:true,volume:.25}),serializeAudioPreferences:JSON.stringify,
+ createFactoryAudio(initial:any,callback:any){let prefs={...initial};let status='waiting',authorized=false;const state=()=>({preferences:{...prefs},status});return {getPreferences:()=>({...prefs}),getState:state,enableFromGesture:()=>{probe.enable();authorized=true;status='running';callback(state());return Promise.resolve(true);},setEnabled:(enabled:boolean)=>{probe.setEnabled(enabled);prefs.enabled=enabled;status=enabled?'running':'off';callback(state());return Promise.resolve(enabled);},setVolume:(volume:number)=>{probe.setVolume(volume);prefs.volume=volume;callback(state());},setHidden:(hidden:boolean)=>{probe.hidden(hidden);status=!prefs.enabled?'off':authorized?(hidden?'suspended':'running'):'waiting';callback(state());},update:probe.update,dispose:probe.dispose};}
+}));
+vi.mock('../src/scene',()=>({createScene(host:HTMLElement){host.appendChild(document.createElement('canvas'));return {update:vi.fn(),focusStation:vi.fn(),metrics:()=>({}),dispose:vi.fn()};}}));
+it('routes gestures, renderer/visibility pauses, simulation, preferences and teardown into audio',async()=>{
+ let hidden=false;Object.defineProperty(document,'hidden',{configurable:true,get:()=>hidden});const raf:FrameRequestCallback[]=[];vi.stubGlobal('requestAnimationFrame',(fn:FrameRequestCallback)=>{raf.push(fn);return raf.length;});
+ document.body.innerHTML='<main id="app"><div id="world"></div><div id="hud"></div></main>';localStorage.clear();await import('../src/main');
+ expect(probe.enable).not.toHaveBeenCalled();document.querySelector('[data-next-process]')!.dispatchEvent(new Event('pointerdown',{bubbles:true}));expect(probe.enable).not.toHaveBeenCalled();document.querySelector('[data-next-process]')!.dispatchEvent(new Event('pointerup',{bubbles:true}));expect(probe.enable).toHaveBeenCalledTimes(1);
+ raf.shift()!(performance.now()+16);expect(probe.update).toHaveBeenCalledTimes(1);
+ hidden=true;document.dispatchEvent(new Event('visibilitychange'));expect(probe.hidden).toHaveBeenLastCalledWith(true);hidden=false;document.dispatchEvent(new Event('visibilitychange'));expect(probe.hidden).toHaveBeenLastCalledWith(false);
+ const canvas=document.querySelector('canvas')!;canvas.dispatchEvent(new Event('webglcontextlost',{cancelable:true}));expect(probe.hidden).toHaveBeenLastCalledWith(true);(document.querySelector('[data-sound]') as HTMLButtonElement).click();expect(probe.setEnabled).not.toHaveBeenCalled();canvas.dispatchEvent(new Event('webglcontextrestored'));expect(probe.hidden).toHaveBeenLastCalledWith(false);
+ (document.querySelector('[data-sound]') as HTMLButtonElement).click();expect(probe.setEnabled).toHaveBeenLastCalledWith(false);const volume=document.querySelector('[data-volume]') as HTMLInputElement;volume.value='60';volume.dispatchEvent(new Event('input',{bubbles:true}));expect(probe.setVolume).toHaveBeenLastCalledWith(.6);
+ window.dispatchEvent(new Event('pagehide'));expect(probe.dispose).toHaveBeenCalledTimes(1);expect(JSON.parse(localStorage.getItem('factory-audio-v1')!)).toEqual({enabled:false,volume:.6});vi.unstubAllGlobals();
+});
